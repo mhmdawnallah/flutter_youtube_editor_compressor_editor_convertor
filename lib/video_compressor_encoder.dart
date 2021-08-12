@@ -1,0 +1,475 @@
+// Main class
+
+import 'dart:io';
+
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+
+import 'package:intl/intl.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:fluttertoast/fluttertoast.dart';
+import 'package:path/path.dart';
+import 'package:video_player/video_player.dart';
+import 'package:flutter_icons/flutter_icons.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:flutter_ffmpeg/flutter_ffmpeg.dart';
+import 'package:dropdown_search/dropdown_search.dart';
+
+import 'widgets/exit_dialog.dart';
+
+class TalentLairCompress extends StatefulWidget {
+  final File file;
+  final TargetPlatform platform;
+  const TalentLairCompress(this.file, this.platform);
+  @override
+  _TalentLairCompressState createState() => _TalentLairCompressState();
+
+  Widget build(BuildContext context) {
+    throw UnimplementedError();
+  }
+
+  BuildContext get context => throw UnimplementedError();
+
+  void deactivate() {}
+
+  void didUpdateWidget(covariant StatefulWidget oldWidget) {}
+
+  void initState() {}
+
+  bool get mounted => throw UnimplementedError();
+
+  void reassemble() {}
+
+  void setState(VoidCallback fn) {}
+
+  StatefulWidget get widget => throw UnimplementedError();
+}
+
+class _TalentLairCompressState extends State<TalentLairCompress>
+    with SingleTickerProviderStateMixin {
+  /// List of all available encoders.
+  final List<String> encoders = [
+    "mpeg4",
+    'libx264',
+    'libx265',
+    'libxvid',
+    'h264',
+    "fontconfig",
+    "freetype",
+    "fribidi",
+    "gmp",
+    "gnutls",
+    "kvazaar",
+    "lame",
+    "libaom",
+    "libass",
+    "libiconv",
+    "libilbc",
+    "libtheora",
+    "libvorbis",
+    "libvpx",
+    "libwebp",
+    "libxml2",
+    "opencore-amr",
+    "opus",
+    "shine",
+    "snappy",
+    "soxr",
+    "speex",
+    "twolame",
+    "vid.stab",
+    "vo-amrwbenc",
+    "wavpack",
+  ];
+
+  /// List of available presets
+  ///
+  /// Preset is used as a tradeoff between quality and time required for compression.
+  final List<String> presets = [
+    'veryslow',
+    'slow',
+    'medium',
+    'fast',
+    'faster',
+    'veryfast',
+    'superfast',
+    'ultrafast'
+  ];
+
+  /// Video encoder library
+  ///
+  /// Default `libx264`
+  String encoder = 'libx264';
+
+  /// Constant Rate Factor
+  ///
+  /// Valid range `0-51`
+  ///
+  /// Default value `23`
+  int crf = 23;
+
+  /// Video input path
+  String inputPath = '';
+
+  /// Video output path
+  ///
+  /// Default path `application_documents_directory/output.mp4`
+  String outputPath = "";
+
+  /// Preset is used as a tradeoff between quality and time required for compression.
+  ///
+  /// Default `medium`
+  String preset = 'medium';
+
+  /// Variable to store the chosen video file.
+  File file;
+
+  /// Variable used to track if the video compression is in progress
+  // bool progressVisibility = false;
+
+  /// Text to be displayed under the folder image
+  String text = "Choose file";
+
+  /// [Animation] and [AnimationController] for folder size animation.
+  Animation animation;
+  AnimationController _controller;
+  String localPath = "";
+  @override
+  void didChangeDependencies() {
+    // TODO: implement didChangeDependencies
+
+    super.didChangeDependencies();
+  }
+
+  Future<String> _findLocalPath() async {
+    final directory = widget.platform == TargetPlatform.android
+        ? await getExternalStorageDirectory()
+        : await getApplicationDocumentsDirectory();
+    return directory.path;
+  }
+
+  Future<void> _prepareSaveDir() async {
+    localPath =
+        await _findLocalPath() + Platform.pathSeparator + "CompressedVideos";
+    final savedDir = Directory(localPath);
+    bool hasExisted = await savedDir.exists();
+    if (!hasExisted) {
+      savedDir.create(recursive: true);
+    }
+  }
+
+  @override
+  initState() {
+    _prepareSaveDir();
+    super.initState();
+
+    file = widget.file;
+    text = widget.file.path;
+
+    // Sorting all encoders for dropdown list.
+    setState(() {
+      encoders.sort();
+    });
+
+    // Initializing [AnimationController]
+    _controller = AnimationController(
+      duration: const Duration(milliseconds: 1000),
+      vsync: this,
+    );
+
+    // Defining animation
+    animation = Tween(
+      begin: 1.0,
+      end: 1.2,
+    ).animate(_controller);
+  }
+
+  @override
+  dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  /// Function to choose a file from your device
+  Future<void> chooseFile() async {
+    ImagePicker.pickVideo(source: ImageSource.gallery).then((videoFile) {
+      setState(() {
+        file = videoFile;
+        text = videoFile.path;
+      });
+    });
+  }
+
+  /// Function to compress video according to the custom parameters.
+  void processVideo({@required context}) async {
+    setState(() {
+      // progressVisibility = true;
+      text = "Compressing... please be patient!";
+      _controller.repeat(reverse: true);
+      // _controller.forward();
+    });
+
+    /// Path of cache directory
+
+    /// Path of directory inside cache to store all the chosen videos.
+    final Directory _appDocDirFolder = Directory(localPath);
+    print("*******************");
+    print(_appDocDirFolder);
+    String newPath = "";
+
+    // If directory does not already exist, create directory.
+    if (await _appDocDirFolder.exists()) {
+      print("Already File Existed");
+      newPath = _appDocDirFolder.path + Platform.pathSeparator;
+      print(newPath);
+    }
+
+    // Required to generate unique file name for the processed video.
+    DateTime now = DateTime.now();
+    String formattedDate = DateFormat('hh-mm-ss-dd-MM-yyyy').format(now);
+
+    /// Input video path
+    String path = file.path;
+
+    /// Output video path
+    setState(() {
+      outputPath = newPath + basename(file.path);
+    });
+
+    final FlutterFFmpeg _flutterFFmpeg = new FlutterFFmpeg();
+
+    /// Start time of the video
+    double s = 0;
+
+    /// End time of the video
+    double d = 30 / 1;
+    // double d = videoPlayerController.value.duration.inSeconds / 1;
+
+    print(
+        "Executing FlutterFFMpeg command: '-i $path -ss $s -t $d -c:v $encoder -preset $preset -crf $crf $outputPath'");
+
+    /// Executing the encoding with the selected params.
+    _flutterFFmpeg
+        .execute(
+            '-i $path -ss $s -t $d -c:v $encoder -preset $preset -crf $crf $outputPath')
+        .then((value) async {
+      file.length().then((uncompressedLength) {
+        File(outputPath).length().then((compressedLength) {
+          setState(() {
+            text =
+                "Uncompressed size: ${uncompressedLength / 1000}KB\nCompressed Size: ${compressedLength / 1000}KB";
+          });
+        });
+      });
+
+      setState(() {
+        // progressVisibility = true;
+        file = null;
+
+        _controller.stop();
+
+        Fluttertoast.showToast(msg: "Succcessfully compressed video");
+      });
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: const SystemUiOverlayStyle(
+        statusBarColor: Colors.white,
+        statusBarIconBrightness: Brightness.dark,
+      ),
+      child: SafeArea(
+        child: Scaffold(
+          appBar: AppBar(
+            brightness: Brightness.dark,
+            backgroundColor: Colors.white,
+            elevation: 0.0,
+            centerTitle: true,
+            title: const Text(
+              'Compressor & Convertor',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: Colors.black,
+              ),
+            ),
+            actions: [
+              Container(
+                margin: const EdgeInsets.all(18.0),
+                height: 25.0,
+                width: 25.0,
+                decoration: const BoxDecoration(
+                  image: DecorationImage(
+                    image: AssetImage('lib/assets/images/folder.png'),
+                    fit: BoxFit.cover,
+                  ),
+                ),
+              )
+            ],
+          ),
+          body: Column(
+            children: [
+              Expanded(
+                flex: 2,
+                child: GestureDetector(
+                  onTap: () async {
+                    await chooseFile();
+                  },
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      AnimatedBuilder(
+                        animation: _controller,
+                        child: Container(
+                          width: 100.0,
+                          height: 100.0,
+                          decoration: BoxDecoration(
+                            image: DecorationImage(
+                              image: AssetImage('lib/assets/images/folder.png'),
+                              fit: BoxFit.contain,
+                            ),
+                          ),
+                        ),
+                        builder: (context, child) => Transform.scale(
+                          child: child,
+                          scale: animation.value,
+                        ),
+                      ),
+                      Text(
+                        "$text",
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: Colors.grey,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              Expanded(
+                flex: 3,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    vertical: 30.0,
+                    horizontal: 15.0,
+                  ),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      DropdownSearch(
+                        label: "Select Encoder",
+                        items: encoders,
+                        selectedItem: encoder,
+                        onChanged: (value) => setState(() {
+                          encoder = value.toString();
+                        }),
+                      ),
+                      DropdownSearch(
+                        items: presets,
+                        label: "Select preset",
+                        selectedItem: preset,
+                        onChanged: (value) => setState(() {
+                          preset = value.toString();
+                        }),
+                      ),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 15),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  "Select CRF value",
+                                  style: TextStyle(
+                                    color: Colors.grey[600],
+                                    fontSize: 12.0,
+                                  ),
+                                ),
+                                Text(
+                                  crf.toString(),
+                                  style: TextStyle(
+                                    fontSize: 20.0,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Slider(
+                            label: crf.toString(),
+                            activeColor: const Color(0xfffbb826),
+                            value: double.parse(crf.toString()),
+                            onChanged: (value) => setState(() {
+                              crf = value.toInt();
+                            }),
+                            min: 0,
+                            max: 51,
+                            divisions: 50,
+                          ),
+                        ],
+                      ),
+                      Container(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          child: Text(
+                            "Compress",
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            padding: const EdgeInsets.all(10.0),
+                            primary: const Color(0xfffb9f26),
+                          ),
+                          onPressed: () {
+                            if (file != null) {
+                              processVideo(context: context);
+                            } else
+                              Fluttertoast.showToast(msg: "Choose a file");
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+          floatingActionButton: text.contains("Uncompressed")
+              ? FloatingActionButton(
+                  tooltip: "Save video",
+                  backgroundColor: Colors.red,
+                  onPressed: () async {
+                    /// Compressed video
+                    File outputFile = File(outputPath);
+
+                    VideoPlayerController _controller =
+                        VideoPlayerController.file(outputFile)..initialize();
+                    _controller.play();
+
+                    showDialog(
+                      context: context,
+                      builder: (context) => Dialog(
+                        child: AspectRatio(
+                          aspectRatio: _controller.value.aspectRatio,
+                          child: VideoPlayer(_controller),
+                        ),
+                      ),
+                    ).then((value) => _controller.pause());
+                  },
+                  child: Icon(
+                    FlutterIcons.play_arrow_mdi,
+                    color: Colors.white,
+                  ),
+                )
+              : null,
+        ),
+      ),
+    );
+  }
+}
