@@ -67,7 +67,7 @@ class _MyHomePageState extends State<MyHomePage> {
     super.initState();
   }
 
-   ElevatedButton debugButton;
+  ElevatedButton debugButton;
 
   final myController = TextEditingController();
   Image thumbnail = Image(image: AssetImage('lib/assets/images/yt.jpg'));
@@ -396,14 +396,19 @@ class _MyHomePageState extends State<MyHomePage> {
 
   Future<String> _findLocalPath() async {
     final directory = widget.platform == TargetPlatform.android
-        ? await getExternalStorageDirectory()
+        ? await Directory("/storage/emulated/0")
         : await getApplicationDocumentsDirectory();
     return directory.path;
   }
 
   Future<void> _prepareSaveDir() async {
-    _localPath =
-        await _findLocalPath() + Platform.pathSeparator + "YoutubeVideos";
+    await getPermission();
+    _localPath = await _findLocalPath() +
+        Platform.pathSeparator +
+        "IQStarsApp" +
+        Platform.pathSeparator +
+        "YoutubeVideos";
+
     print("##############################################");
     print(_localPath);
     print("##############################################");

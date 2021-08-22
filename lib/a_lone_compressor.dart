@@ -14,9 +14,13 @@ import 'package:path_provider/path_provider.dart';
 import 'package:flutter_ffmpeg/flutter_ffmpeg.dart';
 import 'package:dropdown_search/dropdown_search.dart';
 
+import 'video_page.dart';
 import 'widgets/exit_dialog.dart';
 
 class AloneCompressor extends StatefulWidget {
+  final TargetPlatform platform;
+  AloneCompressor({@required this.platform});
+   
   @override
   _AloneCompressorState createState() => _AloneCompressorState();
 
@@ -24,6 +28,7 @@ class AloneCompressor extends StatefulWidget {
     throw UnimplementedError();
   }
 
+ 
   BuildContext get context => throw UnimplementedError();
 
   void deactivate() {}
@@ -43,6 +48,27 @@ class AloneCompressor extends StatefulWidget {
 
 class _AloneCompressorState extends State<AloneCompressor>
     with SingleTickerProviderStateMixin {
+       Future<String> _findLocalPath() async {
+    final directory = widget.platform == TargetPlatform.android
+        ? await Directory("/storage/emulated/0")
+        : await getApplicationDocumentsDirectory();
+    return directory.path;
+  }
+
+  String localPath = "";
+  Future<void> _prepareSaveDir() async {
+    localPath = await _findLocalPath() +
+        Platform.pathSeparator +
+        "IQStarsApp" +
+        Platform.pathSeparator +
+        "CompressedVideos";
+    final savedDir = Directory(localPath);
+    bool hasExisted = await savedDir.exists();
+    if (!hasExisted) {
+      savedDir.create(recursive: true);
+    }
+  }
+
   /// List of all available encoders.
   final List<String> encoders = [
     'libx264',
@@ -131,6 +157,7 @@ class _AloneCompressorState extends State<AloneCompressor>
 
   @override
   initState() {
+    _prepareSaveDir();
     super.initState();
 
     // Sorting all encoders for dropdown list.
@@ -188,7 +215,7 @@ class _AloneCompressorState extends State<AloneCompressor>
 
     /// Path of directory inside cache to store all the chosen videos.
     final Directory _appDocDirFolder =
-        Directory('${_appDocDir.path}/trimmed_videos/');
+        Directory(localPath);
     String newPath;
 
     // If directory does not already exist, create directory.
@@ -423,19 +450,10 @@ class _AloneCompressorState extends State<AloneCompressor>
                     /// Compressed video
                     File outputFile = File(outputPath);
 
-                    VideoPlayerController _controller =
-                        VideoPlayerController.file(outputFile)..initialize();
-                    _controller.play();
-
-                    showDialog(
-                      context: context,
-                      builder: (context) => Dialog(
-                        child: AspectRatio(
-                          aspectRatio: _controller.value.aspectRatio,
-                          child: VideoPlayer(_controller),
-                        ),
-                      ),
-                    ).then((value) => _controller.pause());
+                    Navigator.of(context).push(PageRouteBuilder(
+                        opaque: false,
+                        pageBuilder: (BuildContext context, _, __) =>
+                            VideoPage(outputFile)));
                   },
                   child: Icon(
                     FlutterIcons.play_arrow_mdi,

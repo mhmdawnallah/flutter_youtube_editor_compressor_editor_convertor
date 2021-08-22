@@ -15,6 +15,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:flutter_ffmpeg/flutter_ffmpeg.dart';
 import 'package:dropdown_search/dropdown_search.dart';
 
+import 'video_page.dart';
 import 'widgets/exit_dialog.dart';
 
 class TalentLairCompress extends StatefulWidget {
@@ -143,14 +144,14 @@ class _TalentLairCompressState extends State<TalentLairCompress>
 
   Future<String> _findLocalPath() async {
     final directory = widget.platform == TargetPlatform.android
-        ? await getExternalStorageDirectory()
+        ?await Directory("/storage/emulated/0")
         : await getApplicationDocumentsDirectory();
     return directory.path;
   }
 
   Future<void> _prepareSaveDir() async {
     localPath =
-        await _findLocalPath() + Platform.pathSeparator + "CompressedVideos";
+        await _findLocalPath() +Platform.pathSeparator + "IQStarsApp"+ Platform.pathSeparator + "CompressedVideos";
     final savedDir = Directory(localPath);
     bool hasExisted = await savedDir.exists();
     if (!hasExisted) {
@@ -448,19 +449,12 @@ class _TalentLairCompressState extends State<TalentLairCompress>
                     /// Compressed video
                     File outputFile = File(outputPath);
 
-                    VideoPlayerController _controller =
-                        VideoPlayerController.file(outputFile)..initialize();
-                    _controller.play();
+                 Navigator.of(context).push(PageRouteBuilder(
+    opaque: false,
+    pageBuilder: (BuildContext context, _, __) =>
+        VideoPage(outputFile)));
 
-                    showDialog(
-                      context: context,
-                      builder: (context) => Dialog(
-                        child: AspectRatio(
-                          aspectRatio: _controller.value.aspectRatio,
-                          child: VideoPlayer(_controller),
-                        ),
-                      ),
-                    ).then((value) => _controller.pause());
+                    
                   },
                   child: Icon(
                     FlutterIcons.play_arrow_mdi,

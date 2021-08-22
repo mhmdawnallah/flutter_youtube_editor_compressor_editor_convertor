@@ -38,7 +38,7 @@ dependencies:
   flutter_ffmpeg: ^0.4.0
   flutter_icons: ^1.1.0
   fluttertoast: ^8.0.7
-
+  better_player:
 dev_dependencies:
   flutter_test:
     sdk: flutter

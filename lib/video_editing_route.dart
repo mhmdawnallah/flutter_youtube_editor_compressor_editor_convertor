@@ -77,14 +77,14 @@ class _VideoEditorState extends State<VideoEditor> {
   VideoEditorController _controller;
   Future<String> _findLocalPath() async {
     final directory = widget.platform == TargetPlatform.android
-        ? await getExternalStorageDirectory()
+        ? await Directory("/storage/emulated/0")
         : await getApplicationDocumentsDirectory();
     return directory.path;
   }
 
   Future<void> _prepareSaveDir() async {
     _localPath =
-        await _findLocalPath() + Platform.pathSeparator + "ExportedVideos";
+        await _findLocalPath() +Platform.pathSeparator + "IQStarsApp"+ Platform.pathSeparator + "ExportedVideos";
     print(_localPath);
     print("##############################################");
     final savedDir = Directory(_localPath);

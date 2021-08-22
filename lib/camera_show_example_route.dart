@@ -75,47 +75,49 @@ class _CameraExampleHomeState extends State<CameraExampleHome>
   Widget build(BuildContext context) {
     return Scaffold(
       key: _scaffoldKey,
-      body: Stack(children: <Widget>[
-        SafeArea(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: <Widget>[
-              Expanded(
-                child: Container(
-                  child: Padding(
-                    padding: const EdgeInsets.all(1.0),
-                    child: Center(
-                      child: _cameraPreviewWidget(),
-                    ),
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.black,
-                    border: Border.all(
-                      color: controller != null &&
-                              controller.value.isRecordingVideo
+      body: SafeArea(
+        child: Stack(
+          children: <Widget>[
+            Container(
+              child: Center(
+                child: _cameraPreviewWidget(),
+              ),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                border: Border.all(
+                  color:
+                      controller != null && controller.value.isRecordingVideo
                           ? Colors.redAccent
                           : Colors.grey,
-                      width: 3.0,
-                    ),
-                  ),
+                  width: 3.0,
                 ),
               ),
-              _captureControlRowWidget(),
-              Container(
-                padding: EdgeInsets.all(10.0),
-                height: 90,
-                width: double.infinity,
-                child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: <Widget>[
-                      _selres(),
-                      _cameraTogglesRowWidget(),
-                    ]),
+            ),
+            Positioned.fill(
+                child: Align(
+                    alignment: Alignment.topCenter,
+                    child: _captureControlRowWidget())),
+            Positioned.fill(
+              top: 20,
+              child: Align(
+                alignment: Alignment.topCenter,
+                child: Container(
+                  alignment: Alignment.center,
+                  padding: EdgeInsets.symmetric(horizontal: 30, vertical: 10),
+                  height: 90,
+                  width: MediaQuery.of(context).size.width,
+                  child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: <Widget>[
+                        _selres(),
+                        _cameraTogglesRowWidget(),
+                      ]),
+                ),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
-      ]),
+      ),
     );
   }
 
@@ -125,14 +127,14 @@ class _CameraExampleHomeState extends State<CameraExampleHome>
       return const Text(
         'Tap a camera',
         style: TextStyle(
-          color: Colors.white,
+          color: Colors.black,
           fontSize: 24.0,
           fontWeight: FontWeight.w900,
         ),
       );
     } else {
       return AspectRatio(
-        aspectRatio: controller.value.aspectRatio,
+        aspectRatio: MediaQuery.of(context).size.aspectRatio,
         child: CameraPreview(controller),
       );
     }
@@ -195,10 +197,9 @@ class _CameraExampleHomeState extends State<CameraExampleHome>
               groupValue: controller?.description,
               value: cameraDescription,
               // onChanged: null,
-              onChanged:
-                  controller != null && controller.value.isRecordingVideo
-                      ? null
-                      : onNewCameraSelected,
+              onChanged: controller != null && controller.value.isRecordingVideo
+                  ? null
+                  : onNewCameraSelected,
             ),
           ),
         );
@@ -387,13 +388,13 @@ class _CameraExampleHomeState extends State<CameraExampleHome>
 
   Future<String> _findPath() async {
     final directory = widget.platform == TargetPlatform.android
-        ? await getExternalStorageDirectory()
+        ?await Directory("/storage/emulated/0")
         : await getApplicationDocumentsDirectory();
     return directory.path;
   }
 
   Future<void> _prepareSaveDir() async {
-    _localPath = await _findPath() + Platform.pathSeparator + "Records";
+    _localPath = await _findPath() + Platform.pathSeparator + "IQStarsApp"+Platform.pathSeparator + "Records";
 
     final savedDir = Directory(_localPath);
     bool hasExisted = await savedDir.exists();
